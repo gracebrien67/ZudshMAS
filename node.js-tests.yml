@@ -1,0 +1,160 @@
+name: Node.js CI
+on:
+  push:
+    branches-ignore:
+      - 'renovate/**'
+  pull_request:
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-20.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [16.x]
+
+    steps:
+      - name: Checkout Source Files
+        uses: actions/checkout@v3
+
+      - name: Check number of lockfiles
+        run: |
+          if [ $(find . -name 'package-lock.json' | grep -vc -e 'node_modules') -gt 1 ]
+          then
+            echo 'Error: found too many lockfiles in the repository'
+            exit 1
+          fi
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Set Environment variables
+        run: |
+          cp sample.env .env
+          echo 'SHOW_NEW_CURRICULUM=true' >> .env
+          cat .env
+
+      - name: Lint Source Files
+        run: |
+          echo npm version $(npm -v)
+          npm ci
+          npm run create:config
+          npm run build:curriculum
+          npm run lint
+
+  test:
+    name: Test
+    needs: lint
+    runs-on: ubuntu-20.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [16.x]
+
+    steps:
+      - name: Checkout Source Files
+        uses: actions/checkout@v3
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Set Environment variables
+        run: |
+          cp sample.env .env
+          cat .env
+
+      - name: Install Dependencies
+        run: |
+          echo npm version $(npm -v)
+          npm ci
+          npm run create:config
+          npm run build:curriculum
+
+      - name: Run Tests
+        run: npm test
+
+  test-upcoming:
+    name: Test Upcoming Changes
+    needs: lint
+    runs-on: ubuntu-20.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [16.x]
+
+    steps:
+      - name: Checkout Source Files
+        uses: actions/checkout@v3
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Set Environment variables
+        run: |
+          cp sample.env .env
+          echo 'SHOW_UPCOMING_CHANGES=true' >> .env
+          cat .env
+
+      - name: Install Dependencies
+        run: |
+          echo npm version $(npm -v)
+          npm ci
+          npm run create:config
+          npm run build:curriculum
+
+      - name: Run Tests
+        run: npm test
+
+  test-localization:
+    name: Localize
+    needs: lint
+    runs-on: ubuntu-20.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [16.x]
+        locale: [chinese, espanol]
+
+    steps:
+      - name: Checkout Source Files
+        uses: actions/checkout@v3
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Set Environment variables
+        run: |
+          cp sample.env .env
+          cat .env
+
+      - name: Install Dependencies
+        env:
+          CURRICULUM_LOCALE: ${{ matrix.locale }}
+          CLIENT_LOCALE: ${{ matrix.locale }}
+        run: |
+          echo npm version $(npm -v)
+          npm ci
+          npm run create:config
+          npm run build:curriculum
+
+      - name: Run Tests
+        env:
+          CURRICULUM_LOCALE: ${{ matrix.locale }}
+          CLIENT_LOCALE: ${{ matrix.locale }}
+        run: npm test
